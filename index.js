@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const {
     joinVoiceChannel,
@@ -10,14 +11,11 @@ const {
 const play = require('play-dl');
 const express = require('express');
 
-// --- تنظیمات و توکن‌ها ---
-const DISCORD_TOKEN = "MTM5NTE2OTUxNzQ5OTMyMjM5OA.GRzb8b.dzyYc9YLEGON5q5NicNsL3YGarkGjRV4V4NpS4"; // توکن بات دیسکورد خود را اینجا قرار دهید
-const SPOTIFY_CLIENT_ID = "decb6d31c9244c0e88be710efee4e1b0"; // کلاینت آی‌دی اسپاتیفای
-const SPOTIFY_CLIENT_SECRET = "6f268c5a2ed64b89a97c370e26e10e4a"; // کلاینت سکرت اسپاتیفای
-const PREFIX = "!"; // پیشوند دستورات بات
-// -------------------------
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const PREFIX = "!";
 
-// تنظیمات اولیه play-dl برای اسپاتیفای و ساوندکلاود
 play.getFreeClientID().then((clientID) => {
     play.setToken({
         spotify: {
@@ -40,11 +38,17 @@ const client = new Client({
     ],
 });
 
-const queue = new Map(); // برای مدیریت صف موزیک هر سرور
+const queue = new Map();
 
 client.once('ready', () => {
     console.log(`Bot آماده است! با نام ${client.user.tag} وارد شد.`);
 });
+
+const app = express();
+app.get('/', (request, response) => {
+  response.sendStatus(200);
+});
+app.listen(process.env.PORT || 3000);
 
 client.on('messageCreate', async message => {
     if (message.author.bot || !message.content.startsWith(PREFIX)) return;
@@ -70,10 +74,9 @@ client.on('messageCreate', async message => {
         let songInfo;
 
         try {
-            // ---- START: بخش اصلاح شده برای رفع خطا ----
             const searchResult = await play.search(query, {
                 limit: 1,
-                source: { youtube: 'video' } // این به پیدا کردن لینک قابل پخش کمک می‌کند
+                source: { youtube: 'video' }
             });
 
             if (searchResult.length === 0) {
@@ -81,11 +84,9 @@ client.on('messageCreate', async message => {
             }
             songInfo = searchResult[0];
 
-            // بررسی حیاتی برای جلوگیری از خطای 'Invalid URL'
             if (!songInfo || !songInfo.url) {
                 return message.channel.send(`متاسفانه نتوانستم لینک قابل پخشی برای "${query}" پیدا کنم.`);
             }
-            // ---- END: بخش اصلاح شده ----
 
         } catch (error) {
             console.error(error);
@@ -117,8 +118,7 @@ client.on('messageCreate', async message => {
                     adapterCreator: message.guild.voiceAdapterCreator,
                 });
                 queueContruct.connection = connection;
-
-                // منتظر می‌مانیم تا اتصال پایدار شود
+                
                 await entersState(connection, VoiceConnectionStatus.Ready, 30e3);
                 connection.subscribe(queueContruct.player);
 
@@ -126,7 +126,7 @@ client.on('messageCreate', async message => {
             } catch (err) {
                 console.log(err);
                 queue.delete(message.guild.id);
-                return message.channel.send('خطا در اتصال به کانال صوتی. لطفاً دسترسی‌ها را چک کنید.');
+                return message.channel.send('خطا در اتصال به کانال صوتی.');
             }
         } else {
             serverQueue.songs.push(song);
@@ -135,14 +135,12 @@ client.on('messageCreate', async message => {
     } else if (command === 'skip') {
         if (!message.member.voice.channel) return message.channel.send('شما در کانال صوتی نیستید!');
         if (!serverQueue) return message.channel.send('صف پخشی وجود ندارد!');
-
-        serverQueue.player.stop(); // این کار آهنگ بعدی را به طور خودکار فعال می‌کند
+        serverQueue.player.stop();
         message.channel.send('موزیک رد شد!');
 
     } else if (command === 'stop') {
         if (!message.member.voice.channel) return message.channel.send('شما در کانال صوتی نیستید!');
         if (!serverQueue) return message.channel.send('صف پخشی وجود ندارد!');
-
         serverQueue.songs = [];
         if (serverQueue.connection) {
             serverQueue.connection.destroy();
@@ -175,7 +173,7 @@ async function playSong(guildId, song) {
         const stream = await play.stream(song.url);
         const resource = createAudioResource(stream.stream, { inputType: stream.type });
         serverQueue.player.play(resource);
-
+        
         serverQueue.player.once(AudioPlayerStatus.Idle, () => {
             serverQueue.songs.shift();
             playSong(guildId, serverQueue.songs[0]);
@@ -191,11 +189,4 @@ async function playSong(guildId, song) {
     }
 }
 
-// بخش مربوط به روشن نگه داشتن بات در Replit
-const app = express();
-const port = 3000;
-app.get('/', (req, res) => res.send('Bot is alive!'));
-app.listen(port, () => console.log(`Server is running on http://localhost:${port}`));
-
-// استفاده از متغیر تعریف شده در بالای کد
 client.login(DISCORD_TOKEN);
