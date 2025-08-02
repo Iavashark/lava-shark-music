@@ -82,6 +82,13 @@ client.on('messageCreate', async message => {
                 source: { youtube: 'video' }
             });
 
+            // --- START: DEBUGGING CODE ---
+            console.log('--- PLAY-DL SEARCH RESULT ---');
+            console.log('Search Query:', query);
+            console.log('Search Result Object:', JSON.stringify(searchResult, null, 2));
+            console.log('-----------------------------');
+            // --- END: DEBUGGING CODE ---
+
             if (searchResult.length === 0) {
                 return message.channel.send('موزیکی با این نام پیدا نشد.');
             }
