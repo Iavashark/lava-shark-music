@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const {
@@ -25,6 +26,9 @@ play.getFreeClientID().then((clientID) => {
         },
         soundcloud: {
             client_id: clientID,
+        },
+        youtube: {
+            cookie: process.env.YT_COOKIE
         }
     });
 });
